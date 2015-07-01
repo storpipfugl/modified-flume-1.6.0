@@ -1,0 +1,65 @@
+DirRegexSource
+功能设计
+递归监控目录（筛选文件）
+正则提取数据
+按字节数核对，重启续读
+
+参数
+monitorDir	必填	监控目录
+monitorFileRegex	[\\W\\w]+	选择监控文件名的正则
+checkFile	必填	读取的历史记录文件
+contentRegex	必填	从change file中循环取content的正则
+delayTime	30s	扫描目录间隔
+charsetName	UTF-8	文件编码
+batchSize	1024	单个事务提交event最大数量
+
+//------------------------------------------------------------------
+
+ElasticSearchSink
+新功能设计
+提供索引时刻滚动（分、时、天）
+
+旧参数
+indexNameBuilder=org.apache.flume.sink.elasticsearch.HeadFieldIndexNameBuilder //按时刻滚动
+
+新参数
+indexNameBuilder.timeRollerFlag	时刻滚动必填	DAY/HOUR/MINUTE
+indexNameBuilder.formerField	时刻滚动必填	event的head的时间字段
+indexNameBuilder.sdfParsePattern	时刻滚动必填	解析时间值的Pattern
+
+//------------------------------------------------------------------
+
+HDFSEventSink
+新功能设计
+改重命名逻辑，重启续写（去.tmp缀的文件续写）
+支持提供时刻滚动（分、时、天）（必须关闭其他滚动）
+支持历史数据与新生数据交叉存储，历史文件存储
+
+新参数
+timeRollerFlag	时刻滚动必填	DAY/HOUR/MINUTE
+formerField	时刻滚动必填	event的head的时间字段
+sdfParsePattern isNotBlank(formerField)	时刻滚动必填	解析时间值的Pattern
+
+//------------------------------------------------------------------
+
+拦截器链
+BodyAppendByHeadInterceptor（含{key}和{value} 、指定value+str）
+bodyLoopAppendFormat	时刻滚动必填	变量{key}、{value}、{separator} 例：<{key}>={value}
+bodyCustomAppendFormat	时刻滚动必填	变量{@key}+str、{separator}例：{separator}<hostName>={hostName}{separator}<filePath>={filePath}
+sdfParsePattern isNotBlank(formerField)	时刻滚动必填	解析时间值的Pattern
+
+BodyReplaceByBodyInterceptor（多取正则+ 多str）
+bodyRegex	必填	变量{separator}例：<Message>=(size:)
+bodyStrs	时刻滚动必填	变量{separator}{split}例：
+
+HeadPutByBodyInterceptor（双取正则、指定key+指定正则）
+headLoopAppendRegex	""	双取正则 例：<([^>]*)>=((?:(?!\r?\n)[\\W\\w])*)
+headCustomAppendFields	""	变量{split} 例：
+headCustomAppendRegexs	""	变量{split} 例：
+
+HeadPutByHeadInterceptor（多指定key+指定value+str或指定value的length）
+headKeys	必填	变量{split} 例：startTimeZ{split}closeTimeZ{split}params_length
+headValues	必填	变量{split}、{@key}+str、{@key.length} 例：{StartTime}+08:00{split}{CloseTime}+08:00{split}{Params.length}
+
+//------------------------------------------------------------------
+
