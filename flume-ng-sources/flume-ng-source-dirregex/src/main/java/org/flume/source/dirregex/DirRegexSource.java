@@ -49,49 +49,48 @@ public class DirRegexSource extends AbstractSource implements EventDrivenSource,
 
 	public void configure(Context context) {
 		logger.info("----------------------DirRegexSource configure...");
-
-		// monitorDir、monitorFileRegex
-		String strMonitorDir = context.getString("monitorDir");
-		Preconditions.checkArgument(StringUtils.isNotBlank(strMonitorDir), "Missing Param:'monitorDir'");
-		String monitorFileRegex = context.getString("monitorFileRegex", DEFAULT_MONITORFILEREGEX);
-		Preconditions.checkArgument(StringUtils.isNotBlank(monitorFileRegex), "Missing Param:'monitorFileRegex'");
-		monitorFilePattern = Pattern.compile(monitorFileRegex);
-
-		// checkFile
-		String strCheckFile = context.getString("checkFile");
-		Preconditions.checkArgument(StringUtils.isNotBlank(strCheckFile), "Missing Param:'checkFile'");
-
-		// contentRegex
-		String contentRegex = context.getString("contentRegex");
-		Preconditions.checkArgument(StringUtils.isNotBlank(contentRegex), "Missing Param:'contentRegex'");
-		contentPattern = Pattern.compile(contentRegex);
-
-		// delayTime、charsetName、batchSize
-		delayTime = context.getLong("delayTime", DEFAULT_DELAYTIME);
-		Preconditions.checkArgument(delayTime > 0, "'delayTime' must be greater than 0");
-		charsetName = context.getString("charsetName", DEFAULT_CHARSETNAME);
-		Preconditions.checkArgument(StringUtils.isNotBlank(charsetName), "Missing Param:'charsetName'");
-		batchSize = context.getInteger("batchSize", DEFAULT_BATCHSIZE);
-		Preconditions.checkArgument(batchSize > 0, "'batchSize' must be greater than 0");
-
-		monitorDir = new File(strMonitorDir);
-		checkFile = new File(strCheckFile);
-
-		properties = new Properties();
 		try {
+			// monitorDir、monitorFileRegex
+			String strMonitorDir = context.getString("monitorDir");
+			Preconditions.checkArgument(StringUtils.isNotBlank(strMonitorDir), "Missing Param:'monitorDir'");
+			String monitorFileRegex = context.getString("monitorFileRegex", DEFAULT_MONITORFILEREGEX);
+			Preconditions.checkArgument(StringUtils.isNotBlank(monitorFileRegex), "Missing Param:'monitorFileRegex'");
+			monitorFilePattern = Pattern.compile(monitorFileRegex);
+
+			// checkFile
+			String strCheckFile = context.getString("checkFile");
+			Preconditions.checkArgument(StringUtils.isNotBlank(strCheckFile), "Missing Param:'checkFile'");
+
+			// contentRegex
+			String contentRegex = context.getString("contentRegex");
+			Preconditions.checkArgument(StringUtils.isNotBlank(contentRegex), "Missing Param:'contentRegex'");
+			contentPattern = Pattern.compile(contentRegex);
+
+			// delayTime、charsetName、batchSize
+			delayTime = context.getLong("delayTime", DEFAULT_DELAYTIME);
+			Preconditions.checkArgument(delayTime > 0, "'delayTime' must be greater than 0");
+			charsetName = context.getString("charsetName", DEFAULT_CHARSETNAME);
+			Preconditions.checkArgument(StringUtils.isNotBlank(charsetName), "Missing Param:'charsetName'");
+			batchSize = context.getInteger("batchSize", DEFAULT_BATCHSIZE);
+			Preconditions.checkArgument(batchSize > 0, "'batchSize' must be greater than 0");
+
+			monitorDir = new File(strMonitorDir);
+			checkFile = new File(strCheckFile);
+
+			properties = new Properties();
 			if (!checkFile.exists()) {
 				checkFile.createNewFile();
 			} else {
 				properties.load(new FileInputStream(checkFile));
 			}
+
+			executorService = Executors.newCachedThreadPool();
+			scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
+			sourceCounter = new SourceCounter("DirRegexSource");
 		} catch (Exception e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			throw new IllegalArgumentException(e);
 		}
-
-		executorService = Executors.newCachedThreadPool();
-		scheduledExecutorService = Executors.newSingleThreadScheduledExecutor();
-		sourceCounter = new SourceCounter("DirRegexSource");
 		logger.info("----------------------DirRegexSource configured!");
 	}
 

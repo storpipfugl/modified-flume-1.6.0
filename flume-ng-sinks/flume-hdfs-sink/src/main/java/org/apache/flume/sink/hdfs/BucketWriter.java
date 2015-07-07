@@ -690,9 +690,6 @@ class BucketWriter {
 						fsDataOutputStream.close();
 						fsDataInputStream.close();
 						hdfs.delete(srcPath, true);
-//						hdfs = ((ChecksumFileSystem) fs);
-//						hdfs.rename(dstPath, new Path(dstPath.toUri()+".tmp"));
-//						hdfs.rename(new Path(dstPath.toUri()+".tmp"), dstPath);
 					}
 				}
 				return null;

@@ -24,48 +24,10 @@ public class TestDirRegexSource {
 	@Before
 	public void before() throws ClassNotFoundException, InstantiationException, IllegalAccessException {
 		context = new Context();
-//		context.put("monitorDir", "C:\\flume\\log");
-//		context.put("monitorFileRegex", "Log.txt");
-//		context.put("checkFile", "C:\\flume\\check");
-//		context.put("charsetName", "GBK");
-//		context.put("batchSize", "20");
-//		context.put("contentRegex", "(\\d(?:(?!\r?\n\\d{4}-)[\\W\\w])*\r\n)");
-//		context.put("eventStrategy", "SplitSizeEvent");
-//		context.put("idealEventSize", "1100");
-		
-//		context.put("monitorDir", "C:\\flume\\log");
-//		context.put("monitorFileRegex", "Log.txt");
-//		context.put("checkFile", "C:\\flume\\check");
-//		context.put("charsetName", "GBK");
-//		context.put("contentRegex", "(\\d(?:(?!\r?\n\\d{4}-)[\\W\\w])*)");
-//		context.put("eventStrategy", "MatchHeadEvent");
-//		context.put("headRegexs", "(\\d(?:(?!\\s:)[\\W\\w])+)[\\D]+(\\d+)[\\D]+(\\d+)[\\D]+(\\d+)[\\D]+(\\d+)[\\D]+(\\d+)[\\D]+(\\d+)[\\D]+(\\d+)[\\D]+(\\d+)[\\W\\w]*/split(\\d(?:(?!\\s:)[\\W\\w])+)[\\D]+");
-//		context.put("headFields", "Time,Count,StorageCount,FileAmount,TRSAmount,SqlAmount,OraAmount,MysqlAmount,SoapAmount/splitTime");
-		
-//		context.put("monitorDir", "C:\\flume\\log");
-//		context.put("monitorFileRegex", "trs.log");
-//		context.put("checkFile", "C:\\flume\\check");
-//		context.put("charsetName", "GBK");
-//		context.put("contentRegex", "(\\d(?:(?!\r\n\\d{4}-)[\\W\\w])*)");
-//		context.put("eventStrategy", "MatchHeadEvent");
-//		context.put("headRegex", "(\\d(?:(?!\r\n)[\\W\\w])+)[\\W\\w]+ErrorPrompt\r\n(\\d+)[\\W\\w]*");
-//		context.put("headFields", "Time,Count");	
-		
-		context.put("monitorDir", "C:\\flume\\log");
-		context.put("monitorFileRegex", "hybase-root-server-trsdc-02.log");
-		context.put("checkFile", "C:\\flume\\check");
-		context.put("contentRegex", "(<REC>(?:(?!\r\r\n\r\n)[\\W\\w])*)");
-		context.put("interceptors", "interceptor1");
-		context.put("interceptors.interceptor1.type", "MULTIPLE");
-		context.put("interceptors.interceptor1.headLoopAppendRegex", "<([^>]*)>=((?:(?!\r\n)[\\W\\w])*)");
-		context.put("interceptors.interceptor1.bodyLoopCustomFormat", "\r\nfilePath=<filePath>");
-
-//		context.put("monitorDir", "C:\\flume\\log");
-//		context.put("monitorFileRegex", "log150608.trs");
-//		context.put("checkFile", "C:\\flume\\check");
-//		context.put("contentRegex", "(<REC>(?:(?!\n\n)[\\W\\w])*)");
-//		context.put("eventStrategy", "MatchHeadEvent");
-//		context.put("headRegexs", "<([^>]*)>=((?:(?!\n)[\\W\\w])*)");
+		context.put("monitorDir", "C:");
+		context.put("monitorFileRegex", "cluster15-07-05.03.trs");
+		context.put("checkFile", "C:\\check");
+		context.put("contentRegex", "(<REC>(?:(?!\r\n\r\n)[\\W\\w])*)");
 		
 		Context context1 = new Context();
 		context1.put("capacity", "20000");

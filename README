@@ -13,11 +13,35 @@ delayTime	30s	扫描目录间隔
 charsetName	UTF-8	文件编码
 batchSize	1024	单个事务提交event最大数量
 
+
+
+//------------------------------------------------------------------
+
+SqlSource
+功能设计
+500*1000一次分批读取
+多表监控
+index字段MAX记录，进行续读
+
+参数
+checkFile	必填	index的MAX值
+url	必填	mysql连接参数
+username	root	mysql连接参数
+password	root	mysql连接参数
+tables	必填	表（以{split}分隔）
+columns	必填	字段（一层以{split}分隔、二层以,分隔）
+indexColumns	必填	顺序自增ID字段（以{split}分隔）
+delayTime	30	轮询间隔
+batchSize	1024	单个事务提交event最大数量
+
+
+
 //------------------------------------------------------------------
 
 ElasticSearchSink
 新功能设计
 提供索引时刻滚动（分、时、天）
+value转义
 
 旧参数
 indexNameBuilder=org.apache.flume.sink.elasticsearch.HeadFieldIndexNameBuilder //按时刻滚动
@@ -26,10 +50,14 @@ indexNameBuilder=org.apache.flume.sink.elasticsearch.HeadFieldIndexNameBuilder /
 indexNameBuilder.timeRollerFlag	时刻滚动必填	DAY/HOUR/MINUTE
 indexNameBuilder.formerField	时刻滚动必填	event的head的时间字段
 indexNameBuilder.sdfParsePattern	时刻滚动必填	解析时间值的Pattern
+serializer.escapekeys	要转义key，","分割
+
+
 
 //------------------------------------------------------------------
 
 HDFSEventSink
+在文件头部生成BOM（防utf-8乱码）
 新功能设计
 改重命名逻辑，重启续写（去.tmp缀的文件续写）
 支持提供时刻滚动（分、时、天）（必须关闭其他滚动）
@@ -39,6 +67,8 @@ HDFSEventSink
 timeRollerFlag	时刻滚动必填	DAY/HOUR/MINUTE
 formerField	时刻滚动必填	event的head的时间字段
 sdfParsePattern isNotBlank(formerField)	时刻滚动必填	解析时间值的Pattern
+
+
 
 //------------------------------------------------------------------
 
@@ -60,6 +90,8 @@ headCustomAppendRegexs	""	变量{split} 例：
 HeadPutByHeadInterceptor（多指定key+指定value+str或指定value的length）
 headKeys	必填	变量{split} 例：startTimeZ{split}closeTimeZ{split}params_length
 headValues	必填	变量{split}、{@key}+str、{@key.length} 例：{StartTime}+08:00{split}{CloseTime}+08:00{split}{Params.length}
+
+
 
 //------------------------------------------------------------------
 

@@ -36,7 +36,7 @@ public class BodyAppendByHeadInterceptor implements Interceptor {
 		if (StringUtils.isNotBlank(bodyLoopAppendFormat)) {
 			Set<String> keySet = headMap.keySet();
 			for (String str : keySet) {
-				bodybuilder.append(bodyLoopAppendFormat.replaceAll("\\{key\\}", str).replaceAll("\\{value\\}", headMap.get(str).toString()));
+				bodybuilder.append(bodyLoopAppendFormat.replaceAll("\\{key\\}", str).replaceAll("\\{value\\}", Matcher.quoteReplacement(headMap.get(str).toString())));
 			}
 		}
 

@@ -31,16 +31,14 @@ public class TestSqlSource {
 	public void before() throws ClassNotFoundException, InstantiationException, IllegalAccessException {
 		context = new Context();
 		context.put("url", "jdbc:mysql://127.0.0.1:3306/das_log_base");
-		context.put("table", "ckm_logs");
-		context.put("columns", "CHECKCODE,TRANSID,LOGDATE,LOGTIME,LOGCONTENT,LOGTYPE");
-		context.put("eventBody", "/LOGDATE /LOGTIME : /LOGCONTENT");
-		context.put("checkFile", "C:\\flume\\check");
-		context.put("indexColumn", "LOGID");
-		context.put("charsetName", "GBK");
+		context.put("tables", "ckm_logs");
+		context.put("columns", "CHECKCODE,TRANSID,HOSTID,LOGDATE,LOGTIME,LOGCONTENT,LOGTYPE");
+		context.put("checkFile", "C:\\data\\flume\\flume\\check");
+		context.put("indexColumns", "LOGID");
 		
 		Context context1 = new Context();
-		context1.put("checkpointDir", "C:\\flume\\flume1\\checkPoint1");
-		context1.put("dataDirs", "C:\\flume\\flume1\\data1");
+		context1.put("capacity", "20000");
+		context1.put("transactionCapacity", "2000");
 
 		source = new SqlSource();
 		channel = new MemoryChannel();
@@ -54,17 +52,17 @@ public class TestSqlSource {
 
 		source.setChannelProcessor(new ChannelProcessor(rcs));
 		
-		Context ctx = new Context();
-		Interceptor.Builder builder = InterceptorBuilderFactory.newInstance(InterceptorType.HOST.toString());
-		ctx.put("hostHeader", "hostName");
-		builder.configure(ctx);
-		interceptor1 = builder.build();
-		Context ctx0 = new Context();
-		Interceptor.Builder builder0 = InterceptorBuilderFactory.newInstance(InterceptorType.HEADPUTBYHEAD.toString());
-		ctx0.put("headKeys", "params_length");
-		ctx0.put("headValues", "{hostName.length}");
-		builder0.configure(ctx0);
-		interceptor2 = builder0.build();
+//		Context ctx = new Context();
+//		Interceptor.Builder builder = InterceptorBuilderFactory.newInstance(InterceptorType.BODYAPPENDBYHEAD.toString());
+//		ctx.put("bodyLoopAppendFormat", "{separator}<{key}>={value}");
+//		builder.configure(ctx);
+//		interceptor1 = builder.build();
+//		Context ctx0 = new Context();
+//		Interceptor.Builder builder0 = InterceptorBuilderFactory.newInstance(InterceptorType.BODYREPLACEBYBODY.toString());
+//		ctx0.put("bodyRegex", "<LOGDATE>=\\d{4}([.])\\d{2}([.])\\d{2}");
+//		ctx0.put("bodyStrs", "-{split}-");
+//		builder0.configure(ctx0);
+//		interceptor2 = builder0.build();
 	}
 
 	@Test
