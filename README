@@ -1,8 +1,9 @@
 DirRegexSource
 功能设计
 递归监控目录（筛选文件）
-正则提取数据
 按字节数核对，重启续读
+正则提取数据
+*按内存分批读取(40%)
 
 参数
 monitorDir	必填	监控目录
@@ -19,9 +20,9 @@ batchSize	1024	单个事务提交event最大数量
 
 SqlSource
 功能设计
-500*1000一次分批读取
 多表监控
 index字段MAX记录，进行续读
+*按内存分批读取(80%)
 
 参数
 checkFile	必填	index的MAX值

@@ -45,6 +45,7 @@ public class SqlSource extends AbstractSource implements EventDrivenSource, Conf
 	private ScheduledExecutorService scheduledExecutorService;
 	private ExecutorService executorService;
 	private SourceCounter sourceCounter;
+	private int readBatchSize = 0;
 
 	private String DEFAULT_USERNAME = "root";
 	private String DEFAULT_PASSWORD = "root";
@@ -135,40 +136,43 @@ public class SqlSource extends AbstractSource implements EventDrivenSource, Conf
 			int i = 0;
 			int readedIndex = 0;
 			for (; i < tableArr.length; i++) {
-				int maxIndex = 0;
-				try {
-					Connection conn = DriverManager.getConnection(url, username, password);
-					Statement statement = conn.createStatement();
-					ResultSet rs = statement.executeQuery("select MAX(" + indexColumnArr[i] + ") from " + tableArr[i]);
-					rs.next();
-					maxIndex = rs.getInt(1);
-					rs.close();
-					statement.close();
-					conn.close();
-				} catch (SQLException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
-				}
-				Runnable tableRunnable = null;
-				// new table
-				if (!properties.containsKey(tableArr[i])) {
-					tableRunnable = new TableRunnable(i, 0);
-				} else {
-					readedIndex = Integer.valueOf(properties.get(tableArr[i]).toString());
-					// changed table
-					if (!tmpProperties.containsKey(tableArr[i]) && readedIndex < maxIndex) {
-						tableRunnable = new TableRunnable(i, readedIndex);
-						// illegalState
-					} else if (!tmpProperties.containsKey(tableArr[i]) && readedIndex > maxIndex) {
-						throw new IllegalStateException("'" + tableArr[i] + "'`s readedIndex greater than maxIndex");
-						// unchanged table
-					} else {
-						continue;
+				if (!tmpProperties.containsKey(tableArr[i])) {
+					int maxIndex = 0;
+					try {
+						Connection conn = DriverManager.getConnection(url, username, password);
+						Statement statement = conn.createStatement();
+						ResultSet rs = statement.executeQuery("select MAX(" + indexColumnArr[i] + ") from " + tableArr[i]);
+						rs.next();
+						maxIndex = rs.getInt(1);
+						rs.close();
+						statement.close();
+						conn.close();
+					} catch (SQLException e) {
+						// TODO Auto-generated catch block
+						e.printStackTrace();
 					}
+					Runnable tableRunnable = null;
+					// new table
+					if (!properties.containsKey(tableArr[i])) {
+						tableRunnable = new TableRunnable(i, 0);
+						tmpProperties.put(tableArr[i], "0");
+					} else {
+						readedIndex = Integer.valueOf(properties.get(tableArr[i]).toString());
+						// changed table
+						if (readedIndex < maxIndex) {
+							tableRunnable = new TableRunnable(i, readedIndex);
+							tmpProperties.put(tableArr[i], readedIndex + "");
+							// illegalState
+						} else if (readedIndex > maxIndex) {
+							throw new IllegalStateException("'" + tableArr[i] + "'`s readedIndex greater than maxIndex");
+							// unchanged table
+						} else {
+							continue;
+						}
+					}
+					executorService.submit(tableRunnable);
+					continue;
 				}
-				tmpProperties.put(tableArr[i], maxIndex + "");
-				executorService.submit(tableRunnable);
-				continue;
 			}
 		}
 	}
@@ -195,68 +199,85 @@ public class SqlSource extends AbstractSource implements EventDrivenSource, Conf
 				List<Integer> indexList = new ArrayList<Integer>();
 				String[] columnArr = columnsArr[index].split(",");
 
+				int readBatchTime = 0;
 				while (rs.next()) {
 					indexList.add(rs.getInt("indexColumn"));
 					Event event = EventBuilder.withBody("".getBytes());
 					Map<String, String> tmpMap = new HashMap<String, String>();
 					for (String column : columnArr) {
-						try {
-							tmpMap.put(column, new String(rs.getObject(column).toString().getBytes(charsetName), DEFAULT_CHARSETNAME));
-						} catch (Exception e) {
-							// TODO Auto-generated catch block
-							System.out.println(column);
-							e.printStackTrace();
-						}
+						tmpMap.put(column, new String(rs.getObject(column).toString().getBytes(charsetName), DEFAULT_CHARSETNAME));
 					}
 					tmpMap.remove("indexColumn");
 					event.setHeaders(tmpMap);
 					event.getHeaders().put("table", tableArr[index]);
 					eventList.add(event);
-					if (eventList.size() == 500 * 1000) {
-						process(eventList, indexList);
-						eventList.clear();
-						indexList.clear();
+
+					readBatchTime++;
+					if (readBatchSize == 0) {
+						if (Runtime.getRuntime().totalMemory() > Runtime.getRuntime().maxMemory() * 0.8) {
+							readBatchSize = readBatchTime;
+							process(eventList, indexList);
+							eventList.clear();
+							indexList.clear();
+							readBatchTime = 0;
+						}
+					} else {
+						if (readBatchSize == readBatchTime) {
+							process(eventList, indexList);
+							eventList.clear();
+							indexList.clear();
+							readBatchTime = 0;
+						}
 					}
 				}
+				process(eventList, indexList);
 				rs.close();
 				statement.close();
 				conn.close();
-				process(eventList, indexList);
-			} catch (Exception e) {
+				logger.debug("----------------------table monitor stoped");
+			} catch (Throwable e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} finally {
+				properties.put(tableArr[index], tmpProperties.get(tableArr[index]));
+				try {
+					properties.store(new FileOutputStream(checkFile), null);
+				} catch (FileNotFoundException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				} catch (IOException e1) {
+					// TODO Auto-generated catch block
+					e1.printStackTrace();
+				}
 				tmpProperties.remove(tableArr[index]);
 			}
 		}
 
-		private void process(List<Event> eventList, List<Integer> indexList) throws FileNotFoundException, IOException {
-			logger.debug("----------------------create {} events", eventList.size());
+		private void process(List<Event> eventList, List<Integer> indexList) throws Throwable {
+			try {
+				logger.debug("----------------------create {} events", eventList.size());
 
-			if (eventList.size() == 0) {
-				properties.put(tableArr[index], tmpProperties.get(tableArr[index]));
-				properties.store(new FileOutputStream(checkFile), null);
-				return;
-			}
-			sourceCounter.addToEventReceivedCount(eventList.size());
-
-			// process events
-			int batchCount = eventList.size() / batchSize + 1;
-			for (int i = 0; i < batchCount; i++) {
-				if (i != batchCount - 1) {
-					tmpProperties.put(tableArr[index], indexList.get((i + 1) * batchSize - 1) + "");
-					sourceCounter.addToEventAcceptedCount(eventList.subList(i * batchSize, (i + 1) * batchSize).size());
-					getChannelProcessor().processEventBatch(eventList.subList(i * batchSize, (i + 1) * batchSize));
-				} else {
-					tmpProperties.put(tableArr[index], indexList.get(eventList.size() - 1) + "");
-					sourceCounter.addToEventAcceptedCount(eventList.subList(i * batchSize, eventList.size()).size());
-					getChannelProcessor().processEventBatch(eventList.subList(i * batchSize, eventList.size()));
+				if (eventList.size() != 0) {
+					// process events
+					sourceCounter.addToEventReceivedCount(eventList.size());
+					int batchCount = eventList.size() / batchSize + 1;
+					for (int i = 0; i < batchCount; i++) {
+						if (i != batchCount - 1) {
+							tmpProperties.put(tableArr[index], indexList.get((i + 1) * batchSize - 1) + "");
+							sourceCounter.addToEventAcceptedCount(eventList.subList(i * batchSize, (i + 1) * batchSize).size());
+							getChannelProcessor().processEventBatch(eventList.subList(i * batchSize, (i + 1) * batchSize));
+						} else {
+							tmpProperties.put(tableArr[index], indexList.get(eventList.size() - 1) + "");
+							sourceCounter.addToEventAcceptedCount(eventList.subList(i * batchSize, eventList.size()).size());
+							getChannelProcessor().processEventBatch(eventList.subList(i * batchSize, eventList.size()));
+						}
+					}
+					logger.debug("----------------------process {} batchs", batchCount);
 				}
-				properties.put(tableArr[index], tmpProperties.get(tableArr[index]));
-				properties.store(new FileOutputStream(checkFile), null);
+			} catch (Throwable e) {
+				// TODO Auto-generated catch block
+				e.printStackTrace();
 			}
-			logger.debug("----------------------process {} batchs", batchCount);
-			logger.debug("----------------------table monitor stoped");
 		}
 	}
 }

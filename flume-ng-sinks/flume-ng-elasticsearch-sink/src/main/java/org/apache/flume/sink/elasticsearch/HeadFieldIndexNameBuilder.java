@@ -16,7 +16,6 @@
 
 package org.apache.flume.sink.elasticsearch;
 
-import java.text.ParseException;
 import java.text.SimpleDateFormat;
 
 import org.apache.commons.lang.StringUtils;
@@ -35,11 +34,10 @@ public class HeadFieldIndexNameBuilder implements IndexNameBuilder {
 	public String getIndexName(Event event) {
 		try {
 			return indexName + sdfFormat.format(sdfParse.parse(event.getHeaders().get(formerField)));
-		} catch (ParseException e) {
+		} catch (Exception e) {
 			// TODO Auto-generated catch block
-			e.printStackTrace();
+			return indexName+"_error";
 		}
-		throw new IllegalStateException("HeadFieldIndexNameBuilder parse "+formerField+" error!");
 	}
 
 	@Override

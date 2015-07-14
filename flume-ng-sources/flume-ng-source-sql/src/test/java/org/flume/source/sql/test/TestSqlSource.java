@@ -13,8 +13,6 @@ import org.apache.flume.channel.MemoryChannel;
 import org.apache.flume.channel.ReplicatingChannelSelector;
 import org.apache.flume.conf.Configurables;
 import org.apache.flume.interceptor.Interceptor;
-import org.apache.flume.interceptor.InterceptorBuilderFactory;
-import org.apache.flume.interceptor.InterceptorType;
 import org.flume.source.sql.SqlSource;
 import org.junit.Before;
 import org.junit.Test;
@@ -33,15 +31,18 @@ public class TestSqlSource {
 		context.put("url", "jdbc:mysql://127.0.0.1:3306/das_log_base");
 		context.put("tables", "ckm_logs");
 		context.put("columns", "CHECKCODE,TRANSID,HOSTID,LOGDATE,LOGTIME,LOGCONTENT,LOGTYPE");
-		context.put("checkFile", "C:\\data\\flume\\flume\\check");
+		context.put("checkFile", "C:\\data\\flume\\check");
 		context.put("indexColumns", "LOGID");
 		
 		Context context1 = new Context();
-		context1.put("capacity", "20000");
-		context1.put("transactionCapacity", "2000");
+		context1.put("checkpointDir", "C:\\data\\flume\\checkPoint");
+		context1.put("dataDirs", "C:\\data\\flume\\data");
+		context1.put("capacity", "2000000");
+		context1.put("transactionCapacity", "20000");
 
 		source = new SqlSource();
 		channel = new MemoryChannel();
+		channel.setName("1");
 		Configurables.configure(channel, context1);
 
 		List<Channel> channels = new ArrayList<Channel>();
@@ -51,6 +52,7 @@ public class TestSqlSource {
 		rcs.setChannels(channels);
 
 		source.setChannelProcessor(new ChannelProcessor(rcs));
+		channel.start();
 		
 //		Context ctx = new Context();
 //		Interceptor.Builder builder = InterceptorBuilderFactory.newInstance(InterceptorType.BODYAPPENDBYHEAD.toString());
@@ -82,14 +84,11 @@ public class TestSqlSource {
 				try {
 					int num=0;
 				    while ((event = channel.take()) != null){
-				    	Event event1 = interceptor2.intercept(interceptor1.intercept(event));
+				    	Event event1 = event;
 						System.out.println(event1);
 						System.out.println(new String(event1.getBody()));
 						System.out.println("-------------------------");
 						num++;
-						if(num==20){
-							break;
-						}
 				    }
 				    transaction.commit();
 				} catch (Throwable t) {

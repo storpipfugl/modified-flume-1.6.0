@@ -46,11 +46,8 @@ public class TestElasticSearchSink1 {
 		context.put("indexNameBuilder.timeRollerFlag", "DAY");
 		context.put("indexNameBuilder.formerField", "time");
 		context.put("indexNameBuilder.sdfParsePattern", "yyyyMMdd");
-		sink = new ElasticSearchSink();
 		sink.configure(context);
-
 		Configurables.configure(channel, new Context());
-
 		sink.setChannel(channel);
 		sink.start();
 		

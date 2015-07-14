@@ -208,9 +208,11 @@ public class HDFSEventSink extends AbstractSink implements Configurable {
 
 		// 时刻滚动
 		timeRollerFlag = context.getString("hdfs.timeRollerFlag");
-		Preconditions.checkArgument(rollCount == 0 && rollInterval == 0 && rollSize == 0, "'hdfs.rollCount','hdfs.rollInterval' and 'hdfs.rollSize' must be 0");
-		Preconditions.checkArgument(!StringUtils.isNotBlank(timeRollerFlag) || "DAY".equals(timeRollerFlag) || "HOUR".equals(timeRollerFlag) || "MINUTE".equals(timeRollerFlag), "'hdfs.timeRollerFlag' must be 'DAY' or 'HOUR'");
-
+		if (StringUtils.isNotBlank(timeRollerFlag)) {
+			Preconditions.checkArgument(rollCount == 0 && rollInterval == 0 && rollSize == 0, "'hdfs.rollCount','hdfs.rollInterval' and 'hdfs.rollSize' must be 0");
+			Preconditions.checkArgument(!StringUtils.isNotBlank(timeRollerFlag) || "DAY".equals(timeRollerFlag) || "HOUR".equals(timeRollerFlag) || "MINUTE".equals(timeRollerFlag), "'hdfs.timeRollerFlag' must be 'DAY' or 'HOUR'");
+		}
+		
 		// 历史读取
 		formerField = context.getString("hdfs.formerField");
 		String sdfParsePattern = context.getString("hdfs.sdfParsePattern");

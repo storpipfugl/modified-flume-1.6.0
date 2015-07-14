@@ -24,17 +24,21 @@ public class TestDirRegexSource {
 	@Before
 	public void before() throws ClassNotFoundException, InstantiationException, IllegalAccessException {
 		context = new Context();
-		context.put("monitorDir", "C:");
-		context.put("monitorFileRegex", "cluster15-07-05.03.trs");
-		context.put("checkFile", "C:\\check");
-		context.put("contentRegex", "(<REC>(?:(?!\r\n\r\n)[\\W\\w])*)");
+		context.put("monitorDir", "C:\\flume");
+		context.put("monitorFileRegex", "hybase4");
+		context.put("checkFile", "C:\\data\\flume\\check");
+		context.put("contentRegex", "(<REC>\r\n(?:<[^>]*>=(?:(?!\r\n)[\\W\\w])*\r\n)+)");
 		
 		Context context1 = new Context();
-		context1.put("capacity", "20000");
-		context1.put("transactionCapacity", "2000");
+		context1.put("checkpointDir", "C:\\data\\flume\\checkPoint");
+		context1.put("dataDirs", "C:\\data\\flume\\data");
+		context1.put("capacity", "20000000");
+		context1.put("transactionCapacity", "2000000");
+
 
 		source = new DirRegexSource();
 		channel = new MemoryChannel();
+		channel.setName("1");
 		Configurables.configure(channel, context1);
 
 		List<Channel> channels = new ArrayList<Channel>();
@@ -44,6 +48,7 @@ public class TestDirRegexSource {
 		rcs.setChannels(channels);
 
 		source.setChannelProcessor(new ChannelProcessor(rcs));
+		channel.start();
 	}
 
 	@Test
@@ -51,9 +56,9 @@ public class TestDirRegexSource {
 		source.configure(context);
 		source.start();
 		Thread channelRunnable = new Thread(new ChannelRunnable());
-		channelRunnable.start();
-		MemoryRunnable memoryRunnable = new MemoryRunnable();
-		memoryRunnable.run();
+		channelRunnable.run();
+//		MemoryRunnable memoryRunnable = new MemoryRunnable();
+//		memoryRunnable.run();
 	}
 	
 	class ChannelRunnable implements Runnable {
@@ -65,14 +70,12 @@ public class TestDirRegexSource {
 				try {
 					int num=0;
 				    while ((event = channel.take()) != null){
-						System.out.println(event);
-						System.out.println(new String(event.getBody()));
-						System.out.println("-------------------------");
+//						System.out.println(event);
+//						System.out.println(new String(event.getBody()));
+//						System.out.println("-------------------------");
 						num++;
-						if(num==20){
-							break;
-						}
 				    }
+					System.out.println(num);
 				    transaction.commit();
 				} catch (Throwable t) {
 					transaction.rollback();

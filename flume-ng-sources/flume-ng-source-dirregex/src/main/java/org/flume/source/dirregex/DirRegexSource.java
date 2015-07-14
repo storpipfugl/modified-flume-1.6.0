@@ -2,9 +2,9 @@ package org.flume.source.dirregex;
 
 import java.io.File;
 import java.io.FileInputStream;
+import java.io.FileNotFoundException;
 import java.io.FileOutputStream;
-import java.io.UnsupportedEncodingException;
-import java.nio.charset.Charset;
+import java.io.IOException;
 import java.util.ArrayList;
 import java.util.List;
 import java.util.Properties;
@@ -41,6 +41,7 @@ public class DirRegexSource extends AbstractSource implements EventDrivenSource,
 	private ScheduledExecutorService scheduledExecutorService;
 	private ExecutorService executorService;
 	private SourceCounter sourceCounter;
+	private int readBatchSize = 0;
 
 	private String DEFAULT_MONITORFILEREGEX = "[\\W\\w]+";
 	private String DEFAULT_CHARSETNAME = "UTF-8";
@@ -136,27 +137,29 @@ public class DirRegexSource extends AbstractSource implements EventDrivenSource,
 
 		private void monitorFile(File dir) {
 			for (File tmpFile : dir.listFiles()) {
-				if (tmpFile.isFile()) {
+				if (tmpFile.isFile()&&!tmpProperties.containsKey(tmpFile.getPath())) {
 					Matcher matcher = monitorFilePattern.matcher(tmpFile.getName());
 					if (matcher.matches()) {
 						Runnable fileRunnable = null;
 						// new file
 						if (!properties.containsKey(tmpFile.getPath())) {
 							fileRunnable = new FileRunnable(tmpFile, 0);
+							tmpProperties.put(tmpFile.getPath(), "0");
 						} else {
 							int readedLength = Integer.valueOf(properties.get(tmpFile.getPath()).toString());
 							// changed file
-							if (!tmpProperties.containsKey(tmpFile.getPath()) && readedLength < tmpFile.length()) {
+							if (readedLength < tmpFile.length()) {
 								fileRunnable = new FileRunnable(tmpFile, readedLength);
+								tmpProperties.put(tmpFile.getPath(), readedLength + "");
 								// roll file
-							} else if (!tmpProperties.containsKey(tmpFile.getPath()) && readedLength > tmpFile.length()) {
+							} else if (readedLength > tmpFile.length()) {
 								fileRunnable = new FileRunnable(tmpFile, 0);
+								tmpProperties.put(tmpFile.getPath(), "0");
 								// unchanged file
 							} else {
 								continue;
 							}
 						}
-						tmpProperties.put(tmpFile.getPath(), tmpFile.length() + "");
 						executorService.submit(fileRunnable);
 						continue;
 					}
@@ -177,84 +180,105 @@ public class DirRegexSource extends AbstractSource implements EventDrivenSource,
 		}
 
 		public void run() {
+			logger.debug("----------------------file monitor start...");
+			logger.info("----------------------read {}", monitorFile.getPath());
+
+			FileInputStream fis = null;
 			try {
-				logger.debug("----------------------file monitor start...");
-				logger.info("----------------------read {}", monitorFile.getPath());
-				// read monitorFile
+				// read file(read in batches)
 				StringBuilder strBuilder = new StringBuilder();
-				long fileLength = monitorFile.length();
-				try {
-					FileInputStream fis = new FileInputStream(monitorFile);
-					byte[] arrByte = new byte[1024 * 1024];
+				fis = new FileInputStream(monitorFile);
+				int readed = 0;
+				int mark = 0;
+				fis.skip(readedLength);
+				byte[] arrByte = new byte[1024 * 1024];
+				while (readed+readedLength < monitorFile.length()) {
 					int read = 0;
-					fis.skip(readedLength);
+					int readBatchTime = 0;
 					while ((read = fis.read(arrByte)) != -1) {
 						if (arrByte.length > read) {
 							strBuilder.append(new String(arrByte, 0, read, charsetName));
-						} else
-							strBuilder.append(new String(arrByte, charsetName));
-					}
-					fis.close();
-				} catch (Exception e) {
-					// TODO Auto-generated catch block
-					throw new IllegalStateException("File '" + monitorFile.getName() + "' is Exceptional!");
-				}
-				logger.debug("----------------------get {} byte data", fileLength - readedLength);
-
-				// create events
-				List<Integer> numList = new ArrayList<Integer>();
-				Matcher contentMatcher = contentPattern.matcher(strBuilder.toString());
-				List<Event> eventList = new ArrayList<Event>();
-				while (contentMatcher.find()) {
-					Event event = EventBuilder.withBody(contentMatcher.group(1).getBytes());
-					event.getHeaders().put("filePath", monitorFile.getPath());
-					eventList.add(event);
-					numList.add(contentMatcher.end(1));
-				}
-				logger.debug("----------------------create {} events", eventList.size());
-
-				if (eventList.size() == 0) {
-					properties.put(monitorFile.getPath(), tmpProperties.get(monitorFile.getPath()));
-					properties.store(new FileOutputStream(checkFile), null);
-					return;
-				}
-				sourceCounter.addToEventReceivedCount(eventList.size());
-
-				// process events
-				int batchCount = eventList.size() / batchSize + 1;
-				try {
-					for (int i = 0; i < batchCount; i++) {
-						if (i != batchCount - 1) {
-							tmpProperties.put(monitorFile.getPath(), (readedLength + numList.get((i + 1) * batchSize - 1)) + "");
-							sourceCounter.addToEventAcceptedCount(eventList.subList(i * batchSize, (i + 1) * batchSize).size());
-							getChannelProcessor().processEventBatch(eventList.subList(i * batchSize, (i + 1) * batchSize));
 						} else {
-							tmpProperties.put(monitorFile.getPath(), fileLength + "");
-							sourceCounter.addToEventAcceptedCount(eventList.subList(i * batchSize, eventList.size()).size());
-							getChannelProcessor().processEventBatch(eventList.subList(i * batchSize, eventList.size()));
-							if (logger.isDebugEnabled()) {
-								try {
-									logger.debug("----------------------DirRegexSource defaultCharset is {}", Charset.defaultCharset());
-									logger.debug("----------------------DirRegexSource events #{}", new String(eventList.get(0).getBody(), "utf-8"));
-								} catch (UnsupportedEncodingException e) {
-									// TODO Auto-generated catch block
-									e.printStackTrace();
-								}
+							strBuilder.append(new String(arrByte, charsetName));
+						}
+						readed += read;
+						readBatchTime++;
+						if (readBatchSize == 0) {
+							if (Runtime.getRuntime().totalMemory() > Runtime.getRuntime().maxMemory() * 0.4) {
+								readBatchSize = readBatchTime;
+								break;
+							}
+						} else {
+							if (readBatchSize == readBatchTime) {
+								break;
 							}
 						}
-						properties.put(monitorFile.getPath(), tmpProperties.get(monitorFile.getPath()));
-						properties.store(new FileOutputStream(checkFile), null);
 					}
-				} catch (ChannelException ex) {
-					// TODO Auto-generated catch block
-					ex.printStackTrace();
+					logger.debug("----------------------get {} byte data", readed - readedLength);
+					
+					// create events(remove the last event)
+					List<Integer> numList = new ArrayList<Integer>();
+					Matcher contentMatcher = contentPattern.matcher(strBuilder.toString());
+					List<Event> eventList = new ArrayList<Event>();
+					while (contentMatcher.find()) {
+						Event event = EventBuilder.withBody(contentMatcher.group(1).getBytes());
+						event.getHeaders().put("filePath", monitorFile.getPath());
+						eventList.add(event);
+						numList.add(contentMatcher.end(1));
+						mark = contentMatcher.start(1);
+					}
+					if (readed+readedLength < monitorFile.length() && eventList.size() > 0) {
+						eventList.remove(eventList.size() - 1);
+						numList.remove(numList.size() - 1);
+					}
+					logger.debug("----------------------create {} events", eventList.size());
+
+					// process events(process in batches)
+					if (eventList.size() != 0) {
+						sourceCounter.addToEventReceivedCount(eventList.size());
+						int batchCount = eventList.size() / batchSize + 1;
+						try {
+							for (int i = 0; i < batchCount; i++) {
+								if (i != batchCount - 1) {
+									tmpProperties.put(monitorFile.getPath(), (readedLength + numList.get((i + 1) * batchSize - 1)) + "");
+									sourceCounter.addToEventAcceptedCount(eventList.subList(i * batchSize, (i + 1) * batchSize).size());
+									getChannelProcessor().processEventBatch(eventList.subList(i * batchSize, (i + 1) * batchSize));
+								} else {
+									tmpProperties.put(monitorFile.getPath(), (readed+readedLength) + "");
+									sourceCounter.addToEventAcceptedCount(eventList.subList(i * batchSize, eventList.size()).size());
+									getChannelProcessor().processEventBatch(eventList.subList(i * batchSize, eventList.size()));
+								}
+							}
+						} catch (ChannelException ex) {
+							// TODO Auto-generated catch block
+							ex.printStackTrace();
+						}
+						logger.debug("----------------------process {} batchs", batchCount);
+					}else{
+						tmpProperties.put(monitorFile.getPath(), (readed+readedLength) + "");
+					}
+					if (mark == 0) {
+						strBuilder.setLength(0);
+					} else {
+						strBuilder.delete(0, mark);
+					}
+					logger.debug("----------------------file monitor stoped");
 				}
-				logger.debug("----------------------process {} batchs", batchCount);
-				logger.debug("----------------------file monitor stoped");
-			} catch (Exception e) {
+				fis.close();
+			} catch (Throwable e) {
 				// TODO Auto-generated catch block
 				e.printStackTrace();
 			} finally {
+				properties.put(monitorFile.getPath(), tmpProperties.get(monitorFile.getPath()));
+				try {
+					properties.store(new FileOutputStream(checkFile), null);
+				} catch (FileNotFoundException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				} catch (IOException e) {
+					// TODO Auto-generated catch block
+					e.printStackTrace();
+				}
 				tmpProperties.remove(monitorFile.getPath());
 			}
 		}

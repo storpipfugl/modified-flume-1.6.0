@@ -4,14 +4,9 @@ import java.io.File;
 import java.io.FileInputStream;
 import java.io.UnsupportedEncodingException;
 import java.lang.reflect.InvocationTargetException;
-import java.lang.reflect.Method;
 import java.net.UnknownHostException;
-import java.nio.charset.Charset;
 import java.util.ArrayList;
-import java.util.Arrays;
-import java.util.HashMap;
 import java.util.List;
-import java.util.Map;
 import java.util.regex.Matcher;
 import java.util.regex.Pattern;
 
@@ -47,7 +42,6 @@ public class TmpTest {
 		System.out.println(list);
 	}
 
-	@Test
 	public void testRead() {
 		StringBuilder strBuilder = new StringBuilder();
 		try {
@@ -74,15 +68,27 @@ public class TmpTest {
 		}
 	}
 
+	@Test
 	public void testRegex() {
-		String str = "<REC>asfsdfdfhfgjf\r\r\nasdasd\r\r\nasdasaasd\r\r\n\r\n";
+		String str = "sf<REC><Message1>=type:search\r\n<Message>=type:search\r\n\nasdasdas\r\nsdfsa<REC><Message2>=type:search\r\n<Message>=type:search\r\n\nasdasdas\r\n";
 		// "+System.getProperty("line.separator")+System.getProperty("line.separator")+"
-		Pattern pattern = Pattern.compile("(<REC>(?:(?!\r\r\n\r\n)[\\W\\w])*)");
-		Matcher matcher = pattern.matcher(str);
+		Pattern pattern = Pattern.compile("(<REC>(?:<[^>]*>=(?:(?!\r\n)[\\W\\w])*\r\n)+)");
 		// System.out.println(matcher.matches());
-		while (matcher.find()) {
-			System.out.println(matcher.group(1));
-			System.out.println("------------------");
+		int a=0;
+		StringBuilder bodybuilder = new StringBuilder(str);
+		for(int i=0;i<2;i++){
+			Matcher matcher = pattern.matcher(bodybuilder);
+			List<String> eventList = new ArrayList<String>();
+			while (matcher.find()) {
+				a=matcher.start(1);
+				eventList.add(matcher.group(1));
+			}
+			if(i!=1){
+				eventList.remove(eventList.size()-1);
+			}
+			System.out.println(eventList);
+			bodybuilder.delete(0, a);
+			bodybuilder.append("sf<REC><Message3>=type:search\r\n<Message>=type:search\r\n");
 		}
 	}
 
