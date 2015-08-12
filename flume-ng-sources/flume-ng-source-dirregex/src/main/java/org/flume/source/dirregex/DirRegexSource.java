@@ -41,7 +41,6 @@ public class DirRegexSource extends AbstractSource implements EventDrivenSource,
 	private ScheduledExecutorService scheduledExecutorService;
 	private ExecutorService executorService;
 	private SourceCounter sourceCounter;
-	private int readBatchSize = 0;
 
 	private String DEFAULT_MONITORFILEREGEX = "[\\W\\w]+";
 	private String DEFAULT_CHARSETNAME = "UTF-8";
@@ -137,7 +136,7 @@ public class DirRegexSource extends AbstractSource implements EventDrivenSource,
 
 		private void monitorFile(File dir) {
 			for (File tmpFile : dir.listFiles()) {
-				if (tmpFile.isFile()&&!tmpProperties.containsKey(tmpFile.getPath())) {
+				if (tmpFile.isFile() && !tmpProperties.containsKey(tmpFile.getPath())) {
 					Matcher matcher = monitorFilePattern.matcher(tmpFile.getName());
 					if (matcher.matches()) {
 						Runnable fileRunnable = null;
@@ -192,9 +191,9 @@ public class DirRegexSource extends AbstractSource implements EventDrivenSource,
 				int mark = 0;
 				fis.skip(readedLength);
 				byte[] arrByte = new byte[1024 * 1024];
-				while (readed+readedLength < monitorFile.length()) {
+				long freeMemory = Runtime.getRuntime().freeMemory();
+				while (readed + readedLength < monitorFile.length()) {
 					int read = 0;
-					int readBatchTime = 0;
 					while ((read = fis.read(arrByte)) != -1) {
 						if (arrByte.length > read) {
 							strBuilder.append(new String(arrByte, 0, read, charsetName));
@@ -202,20 +201,14 @@ public class DirRegexSource extends AbstractSource implements EventDrivenSource,
 							strBuilder.append(new String(arrByte, charsetName));
 						}
 						readed += read;
-						readBatchTime++;
-						if (readBatchSize == 0) {
-							if (Runtime.getRuntime().totalMemory() > Runtime.getRuntime().maxMemory() * 0.4) {
-								readBatchSize = readBatchTime;
-								break;
-							}
-						} else {
-							if (readBatchSize == readBatchTime) {
-								break;
-							}
+						if (Runtime.getRuntime().totalMemory() == Runtime.getRuntime().maxMemory() || (Runtime.getRuntime().totalMemory() > Runtime.getRuntime().maxMemory() * 0.4 && Runtime.getRuntime().freeMemory() > freeMemory)) {
+							freeMemory = Runtime.getRuntime().freeMemory();
+							break;
 						}
+						freeMemory = Runtime.getRuntime().freeMemory();
 					}
 					logger.debug("----------------------get {} byte data", readed - readedLength);
-					
+
 					// create events(remove the last event)
 					List<Integer> numList = new ArrayList<Integer>();
 					Matcher contentMatcher = contentPattern.matcher(strBuilder.toString());
@@ -227,7 +220,7 @@ public class DirRegexSource extends AbstractSource implements EventDrivenSource,
 						numList.add(contentMatcher.end(1));
 						mark = contentMatcher.start(1);
 					}
-					if (readed+readedLength < monitorFile.length() && eventList.size() > 0) {
+					if (readed + readedLength < monitorFile.length() && eventList.size() > 0) {
 						eventList.remove(eventList.size() - 1);
 						numList.remove(numList.size() - 1);
 					}
@@ -244,7 +237,7 @@ public class DirRegexSource extends AbstractSource implements EventDrivenSource,
 									sourceCounter.addToEventAcceptedCount(eventList.subList(i * batchSize, (i + 1) * batchSize).size());
 									getChannelProcessor().processEventBatch(eventList.subList(i * batchSize, (i + 1) * batchSize));
 								} else {
-									tmpProperties.put(monitorFile.getPath(), (readed+readedLength) + "");
+									tmpProperties.put(monitorFile.getPath(), (readed + readedLength) + "");
 									sourceCounter.addToEventAcceptedCount(eventList.subList(i * batchSize, eventList.size()).size());
 									getChannelProcessor().processEventBatch(eventList.subList(i * batchSize, eventList.size()));
 								}
@@ -254,8 +247,8 @@ public class DirRegexSource extends AbstractSource implements EventDrivenSource,
 							ex.printStackTrace();
 						}
 						logger.debug("----------------------process {} batchs", batchCount);
-					}else{
-						tmpProperties.put(monitorFile.getPath(), (readed+readedLength) + "");
+					} else {
+						tmpProperties.put(monitorFile.getPath(), (readed + readedLength) + "");
 					}
 					if (mark == 0) {
 						strBuilder.setLength(0);

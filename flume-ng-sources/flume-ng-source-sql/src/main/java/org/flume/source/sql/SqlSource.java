@@ -45,7 +45,6 @@ public class SqlSource extends AbstractSource implements EventDrivenSource, Conf
 	private ScheduledExecutorService scheduledExecutorService;
 	private ExecutorService executorService;
 	private SourceCounter sourceCounter;
-	private int readBatchSize = 0;
 
 	private String DEFAULT_USERNAME = "root";
 	private String DEFAULT_PASSWORD = "root";
@@ -199,7 +198,7 @@ public class SqlSource extends AbstractSource implements EventDrivenSource, Conf
 				List<Integer> indexList = new ArrayList<Integer>();
 				String[] columnArr = columnsArr[index].split(",");
 
-				int readBatchTime = 0;
+				long freeMemory = Runtime.getRuntime().freeMemory();
 				while (rs.next()) {
 					indexList.add(rs.getInt("indexColumn"));
 					Event event = EventBuilder.withBody("".getBytes());
@@ -212,22 +211,11 @@ public class SqlSource extends AbstractSource implements EventDrivenSource, Conf
 					event.getHeaders().put("table", tableArr[index]);
 					eventList.add(event);
 
-					readBatchTime++;
-					if (readBatchSize == 0) {
-						if (Runtime.getRuntime().totalMemory() > Runtime.getRuntime().maxMemory() * 0.8) {
-							readBatchSize = readBatchTime;
-							process(eventList, indexList);
-							eventList.clear();
-							indexList.clear();
-							readBatchTime = 0;
-						}
-					} else {
-						if (readBatchSize == readBatchTime) {
-							process(eventList, indexList);
-							eventList.clear();
-							indexList.clear();
-							readBatchTime = 0;
-						}
+					if (Runtime.getRuntime().totalMemory() == Runtime.getRuntime().maxMemory() || (Runtime.getRuntime().totalMemory() > Runtime.getRuntime().maxMemory() * 0.4 && Runtime.getRuntime().freeMemory() > freeMemory)) {
+						freeMemory = Runtime.getRuntime().freeMemory();
+						process(eventList, indexList);
+						eventList.clear();
+						indexList.clear();
 					}
 				}
 				process(eventList, indexList);

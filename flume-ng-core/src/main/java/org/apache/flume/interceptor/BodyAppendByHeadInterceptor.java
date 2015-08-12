@@ -13,6 +13,8 @@ import org.apache.flume.Event;
 import org.slf4j.Logger;
 import org.slf4j.LoggerFactory;
 
+import com.google.common.base.Preconditions;
+
 public class BodyAppendByHeadInterceptor implements Interceptor {
 	private static final Logger logger = LoggerFactory.getLogger(BodyAppendByHeadInterceptor.class);
 	private String bodyLoopAppendFormat, bodyCustomAppendFormat;
@@ -88,6 +90,7 @@ public class BodyAppendByHeadInterceptor implements Interceptor {
 		public void configure(Context context) {
 			bodyLoopAppendFormat = context.getString("bodyLoopAppendFormat","").replaceAll("\\{separator\\}", System.getProperty("line.separator"));
 			bodyCustomAppendFormat = context.getString("bodyCustomAppendFormat","").replaceAll("\\{separator\\}", System.getProperty("line.separator"));
+			Preconditions.checkArgument((!bodyLoopAppendFormat.equals("")&&bodyCustomAppendFormat.equals(""))||(bodyLoopAppendFormat.equals("")&&!bodyCustomAppendFormat.equals("")), "bodyLoopAppendFormat和 bodyCustomAppendFormat只能选一个");
 		}
 	}
 }

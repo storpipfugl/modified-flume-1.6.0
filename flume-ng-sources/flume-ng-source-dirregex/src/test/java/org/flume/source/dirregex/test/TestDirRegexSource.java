@@ -25,7 +25,7 @@ public class TestDirRegexSource {
 	public void before() throws ClassNotFoundException, InstantiationException, IllegalAccessException {
 		context = new Context();
 		context.put("monitorDir", "C:\\flume");
-		context.put("monitorFileRegex", "hybase4");
+		context.put("monitorFileRegex", "hybase\\d{1}");
 		context.put("checkFile", "C:\\data\\flume\\check");
 		context.put("contentRegex", "(<REC>\r\n(?:<[^>]*>=(?:(?!\r\n)[\\W\\w])*\r\n)+)");
 		
@@ -82,12 +82,6 @@ public class TestDirRegexSource {
 					System.out.println(t);
 				} finally {
 					transaction.close();
-				}
-			    try {
-					Thread.sleep(2000);
-				} catch (InterruptedException e) {
-					// TODO Auto-generated catch block
-					e.printStackTrace();
 				}
 			}
 		}

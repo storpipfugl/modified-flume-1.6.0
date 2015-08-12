@@ -94,9 +94,7 @@ public class HeadPutByHeadInterceptor implements Interceptor {
 			String headKeys = context.getString("headKeys");
 			Preconditions.checkArgument(StringUtils.isNotBlank(headKeys), "Missing Param:'headKeys'");
 			headKeyArr = headKeys.split("\\{split\\}");
-			String headValues = context.getString("headValues");
-			Preconditions.checkArgument(StringUtils.isNotBlank(headValues), "Missing Param:'headValues'");
-			headValueArr = headValues.split("\\{split\\}");
+			headValueArr = context.getString("headValues","").split("\\{split\\}");
 		}
 	}
 }

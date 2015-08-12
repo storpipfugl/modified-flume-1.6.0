@@ -95,10 +95,11 @@ public class HeadPutByBodyInterceptor implements Interceptor {
 			headCustomAppendFieldList = Arrays.asList(headCustomAppendFields.split("\\{split\\}"));
 			String headCustomAppendRegexs = context.getString("headCustomAppendRegexs", "");
 			String[] arrStr = headCustomAppendRegexs.split("\\{split\\}");
-			Preconditions.checkArgument(headCustomAppendFieldList.size()==arrStr.length, "headCustomAppendFields` size is not equal to headCustomAppendRegexs`");
+			Preconditions.checkArgument(headCustomAppendFieldList.size()==arrStr.length, "headCustomAppendFields和 headCustomAppendRegexs长度不等");
 			for (String str : arrStr) {
 				headCustomAppendPatternList.add(Pattern.compile(str));
 			}
+			Preconditions.checkArgument((!headLoopAppendRegex.equals("")&&headCustomAppendFields.equals(""))||(headLoopAppendRegex.equals("")&&!headCustomAppendFields.equals("")), "headLoopAppendRegex和 headCustomAppendFields只能选一个");
 		}
 	}
 }
